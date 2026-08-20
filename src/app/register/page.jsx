@@ -13,6 +13,8 @@ export default function RegisterPage() {
     name: "",
     email: "",
     image: "",
+    role: "seeker", // Default role
+    companyName: "",
     password: "",
     confirmPassword: "",
   });
@@ -21,6 +23,7 @@ export default function RegisterPage() {
     name: "",
     email: "",
     image: "",
+    companyName: "",
     password: "",
     confirmPassword: "",
   });
@@ -45,12 +48,21 @@ export default function RegisterPage() {
     if (serverError) setServerError("");
   };
 
+  const handleRoleSelect = (role) => {
+    setFormData((prev) => ({ ...prev, role }));
+    if (serverError) setServerError("");
+  };
+
   const validateForm = () => {
     const newErrors = {};
-    const { name, email, password, confirmPassword } = formData;
+    const { name, email, password, confirmPassword, role, companyName } = formData;
 
     if (!name.trim()) {
       newErrors.name = "Full name is required";
+    }
+
+    if (role === "recruiter" && !companyName.trim()) {
+      newErrors.companyName = "Company or Agency name is required for recruiters";
     }
 
     if (!email.trim()) {
@@ -91,10 +103,15 @@ export default function RegisterPage() {
         email: formData.email.trim(),
         password: formData.password,
         name: formData.name.trim(),
+        role: formData.role || "seeker",
       };
 
       if (formData.image.trim()) {
         payload.image = formData.image.trim();
+      }
+
+      if (formData.role === "recruiter" && formData.companyName?.trim()) {
+        payload.companyName = formData.companyName.trim();
       }
 
       const response = await authClient.signUp.email(payload);
@@ -133,7 +150,7 @@ export default function RegisterPage() {
       <div className="absolute bottom-10 right-1/4 w-80 h-80 bg-[#5B60F6]/10 blur-[130px] rounded-full pointer-events-none" />
 
       {/* Main Card Container */}
-      <div className="relative z-10 w-full max-w-md">
+      <div className="relative z-10 w-full max-w-lg">
         
         {/* Card Header */}
         <div className="text-center mb-8">
@@ -151,13 +168,95 @@ export default function RegisterPage() {
             Create your account
           </h1>
           <p className="mt-2 text-sm text-slate-400">
-            Join thousands of professionals finding their dream careers
+            {formData.role === "recruiter"
+              ? "Source top talent and build your high-performing team"
+              : "Join thousands of professionals finding their dream careers"}
           </p>
         </div>
 
         {/* Form Card */}
         <div className="rounded-3xl bg-[#141217]/85 backdrop-blur-2xl border border-white/10 p-6 sm:p-8 shadow-2xl shadow-black/80">
           
+          {/* Role Selection Tabs */}
+          <div className="mb-6">
+            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-2.5">
+              Select Your Role
+            </label>
+            <div className="grid grid-cols-2 gap-3">
+              {/* Job Seeker Option */}
+              <button
+                type="button"
+                onClick={() => handleRoleSelect("seeker")}
+                className={`relative flex flex-col items-start p-3.5 sm:p-4 rounded-2xl text-left border transition-all duration-200 cursor-pointer ${
+                  formData.role === "seeker"
+                    ? "bg-gradient-to-b from-[#5B60F6]/20 to-[#7C3AED]/10 border-indigo-500/80 shadow-lg shadow-indigo-500/15 ring-1 ring-indigo-500/40"
+                    : "bg-white/[0.03] border-white/10 hover:border-white/20 hover:bg-white/[0.06]"
+                }`}
+              >
+                <div className="flex items-center justify-between w-full mb-2">
+                  <div
+                    className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${
+                      formData.role === "seeker"
+                        ? "bg-indigo-500/20 text-indigo-400 border border-indigo-500/30"
+                        : "bg-white/5 text-slate-400 border border-white/10"
+                    }`}
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                  </div>
+                  {formData.role === "seeker" && (
+                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-indigo-500 text-white">
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </span>
+                  )}
+                </div>
+                <span className="text-sm font-bold text-white block">Job Seeker</span>
+                <span className="text-[11px] text-slate-400 mt-0.5 leading-tight line-clamp-2">
+                  Looking to find and apply for dream jobs
+                </span>
+              </button>
+
+              {/* Recruiter Option */}
+              <button
+                type="button"
+                onClick={() => handleRoleSelect("recruiter")}
+                className={`relative flex flex-col items-start p-3.5 sm:p-4 rounded-2xl text-left border transition-all duration-200 cursor-pointer ${
+                  formData.role === "recruiter"
+                    ? "bg-gradient-to-b from-[#5B60F6]/20 to-[#7C3AED]/10 border-indigo-500/80 shadow-lg shadow-indigo-500/15 ring-1 ring-indigo-500/40"
+                    : "bg-white/[0.03] border-white/10 hover:border-white/20 hover:bg-white/[0.06]"
+                }`}
+              >
+                <div className="flex items-center justify-between w-full mb-2">
+                  <div
+                    className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${
+                      formData.role === "recruiter"
+                        ? "bg-indigo-500/20 text-indigo-400 border border-indigo-500/30"
+                        : "bg-white/5 text-slate-400 border border-white/10"
+                    }`}
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                    </svg>
+                  </div>
+                  {formData.role === "recruiter" && (
+                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-indigo-500 text-white">
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </span>
+                  )}
+                </div>
+                <span className="text-sm font-bold text-white block">Recruiter</span>
+                <span className="text-[11px] text-slate-400 mt-0.5 leading-tight line-clamp-2">
+                  Looking to hire talent & manage job posts
+                </span>
+              </button>
+            </div>
+          </div>
+
           {/* General Server Error Box */}
           {serverError && (
             <div className="mb-6 p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-sm flex items-start gap-3 animate-in fade-in duration-200">
@@ -216,7 +315,7 @@ export default function RegisterPage() {
                   name="name"
                   value={formData.name}
                   onChange={handleChange}
-                  placeholder="John Doe"
+                  placeholder={formData.role === "recruiter" ? "Sarah Jenkins (HR / Recruiter)" : "John Doe"}
                   className={`w-full pl-10 pr-4 py-3 rounded-xl bg-white/5 border text-white placeholder-slate-500 text-sm focus:outline-none transition-all duration-200 ${
                     errors.name
                       ? "border-rose-500/80 focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20"
@@ -233,6 +332,42 @@ export default function RegisterPage() {
                 </p>
               )}
             </div>
+
+            {/* Recruiter Only: Company / Agency Name Field */}
+            {formData.role === "recruiter" && (
+              <div className="animate-in fade-in slide-in-from-top-2 duration-200">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-2">
+                  Company / Organization Name
+                </label>
+                <div className="relative flex items-center">
+                  <span className="absolute left-3.5 text-slate-400">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                  </span>
+                  <input
+                    type="text"
+                    name="companyName"
+                    value={formData.companyName}
+                    onChange={handleChange}
+                    placeholder="Acme Corp / Elite Talent Agency"
+                    className={`w-full pl-10 pr-4 py-3 rounded-xl bg-white/5 border text-white placeholder-slate-500 text-sm focus:outline-none transition-all duration-200 ${
+                      errors.companyName
+                        ? "border-rose-500/80 focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20"
+                        : "border-white/10 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                    }`}
+                  />
+                </div>
+                {errors.companyName && (
+                  <p className="mt-1.5 text-xs text-rose-400 flex items-center gap-1.5 animate-in fade-in duration-150">
+                    <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span>{errors.companyName}</span>
+                  </p>
+                )}
+              </div>
+            )}
 
             {/* Email Input */}
             <div>

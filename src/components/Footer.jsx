@@ -1,8 +1,20 @@
+"use client";
+
 import React from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { usePathname } from "next/navigation";
+import { useSession } from "@/lib/auth-client";
 
 export default function Footer() {
+  const pathname = usePathname();
+  const { data: session } = useSession();
+  const user = session?.user;
+
+  if (pathname.startsWith("/dashboard/recruiter")) {
+    return null;
+  }
+
   return (
     <footer className="relative bg-[#09090B] border-t border-white/10 text-slate-400 overflow-hidden">
       {/* Background Decorative Ambient Grid / Glow */}

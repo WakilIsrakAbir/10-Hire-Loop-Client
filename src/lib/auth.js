@@ -8,7 +8,22 @@ const client = new MongoClient(
 const db = client.db(process.env.AUTH_DB_NAME || "hireloop_db");
 
 export const auth = betterAuth({
-    emailAndPassword: { 
+  user: {
+    additionalFields: {
+      role: {
+        type: "string",
+        required: false,
+        defaultValue: "seeker",
+        input: true,
+      },
+      companyName: {
+        type: "string",
+        required: false,
+        input: true,
+      },
+    },
+  },
+  emailAndPassword: { 
     enabled: true,
     minPasswordLength: 6,
   }, 

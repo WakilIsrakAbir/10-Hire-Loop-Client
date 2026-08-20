@@ -54,6 +54,11 @@ export default function Navbar() {
 
   const user = session?.user;
 
+  // On recruiter dashboard, hide global floating navbar for clean dashboard UI
+  if (pathname.startsWith("/dashboard/recruiter")) {
+    return null;
+  }
+
   return (
     <header className="fixed top-4 inset-x-0 z-50 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
       <nav className="relative flex items-center justify-between px-6 py-3 rounded-2xl bg-[#141416]/70 backdrop-blur-xl border border-white/10 shadow-2xl">
@@ -136,10 +141,15 @@ export default function Navbar() {
                 <div className="absolute right-0 mt-3 w-56 rounded-2xl bg-[#141217]/95 backdrop-blur-2xl border border-white/10 shadow-2xl p-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
                   {/* User info Header */}
                   <div className="px-3 py-2.5 border-b border-white/10 mb-1">
-                    <p className="text-xs font-semibold text-white truncate">
-                      {user.name}
-                    </p>
-                    <p className="text-[11px] text-slate-400 truncate">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-xs font-semibold text-white truncate">
+                        {user.name}
+                      </p>
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 uppercase tracking-wider shrink-0">
+                        {user.role === "recruiter" ? "Recruiter" : "Seeker"}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-400 truncate mt-0.5">
                       {user.email}
                     </p>
                   </div>
