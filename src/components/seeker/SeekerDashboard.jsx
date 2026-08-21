@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { updateUser } from "@/lib/auth-client";
 
@@ -197,6 +197,49 @@ export function ProfileSettingsForm({ user, refetch }) {
 
 // Job Seeker Dashboard Main View Component
 export default function SeekerDashboard({ user, refetch }) {
+  const [applications, setApplications] = useState([]);
+  const [loadingApps, setLoadingApps] = useState(true);
+  const [statusFilter, setStatusFilter] = useState("All");
+
+  useEffect(() => {
+    async function fetchMyApplications() {
+      try {
+        setLoadingApps(true);
+        const res = await fetch("/api/applications");
+        if (res.ok) {
+          const data = await res.json();
+          setApplications(data.applications || []);
+        }
+      } catch (err) {
+        console.error("Failed to load applications:", err);
+      } finally {
+        setLoadingApps(false);
+      }
+    }
+    fetchMyApplications();
+  }, []);
+
+  const statusFilters = ["All", "Under Review", "Shortlisted", "Offered", "Rejected"];
+
+  const filteredApplications = applications.filter((app) => {
+    if (statusFilter === "All") return true;
+    return app.status === statusFilter;
+  });
+
+  const getStatusBadge = (status) => {
+    switch (status) {
+      case "Offered":
+        return "bg-emerald-500/15 border-emerald-500/30 text-emerald-400";
+      case "Shortlisted":
+        return "bg-purple-500/15 border-purple-500/30 text-purple-300";
+      case "Rejected":
+        return "bg-rose-500/15 border-rose-500/30 text-rose-400";
+      case "Under Review":
+      default:
+        return "bg-indigo-500/15 border-indigo-500/30 text-indigo-300";
+    }
+  };
+
   return (
     <div className="relative min-h-screen bg-[#070709] text-white pt-32 pb-24 px-4 sm:px-6 lg:px-8 overflow-hidden">
       {/* Vertical Stripes & Ambient Light */}
@@ -230,16 +273,16 @@ export default function SeekerDashboard({ user, refetch }) {
               <p className="text-xs sm:text-sm text-slate-400 mt-1 flex items-center gap-2 flex-wrap">
                 <span>{user?.email}</span>
                 <span className="text-slate-600">•</span>
-                <span>Member since {new Date().getFullYear()}</span>
+                <span>Active Candidate</span>
               </p>
             </div>
           </div>
 
           <Link
-            href="/"
+            href="/jobs"
             className="self-start sm:self-auto px-5 py-2.5 rounded-xl font-semibold text-xs text-white bg-gradient-to-r from-[#5B60F6] to-[#7C3AED] hover:from-[#4F53E8] hover:to-[#6D28D9] shadow-lg shadow-indigo-500/25 transition-all duration-200"
           >
-            Browse Jobs
+            Browse Open Jobs →
           </Link>
         </div>
 
@@ -247,14 +290,24 @@ export default function SeekerDashboard({ user, refetch }) {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
           <div className="p-6 rounded-2xl bg-[#141217]/85 border border-white/10 backdrop-blur-xl">
             <span className="text-xs text-slate-400 font-medium">Applied Jobs</span>
-            <h3 className="text-3xl font-bold text-white mt-1">0</h3>
-            <p className="text-[11px] text-slate-500 mt-2">Start exploring positions</p>
+            <h3 className="text-3xl font-bold text-white mt-1">{applications.length}</h3>
+            <p className="text-[11px] text-indigo-400 mt-2">Active applications</p>
           </div>
 
           <div className="p-6 rounded-2xl bg-[#141217]/85 border border-white/10 backdrop-blur-xl">
-            <span className="text-xs text-slate-400 font-medium">Saved Jobs</span>
-            <h3 className="text-3xl font-bold text-white mt-1">0</h3>
-            <p className="text-[11px] text-slate-500 mt-2">Bookmark top opportunities</p>
+            <span className="text-xs text-slate-400 font-medium">Under Review</span>
+            <h3 className="text-3xl font-bold text-white mt-1">
+              {applications.filter((a) => (a.status || "Under Review") === "Under Review").length}
+            </h3>
+            <p className="text-[11px] text-slate-500 mt-2">In review by recruiters</p>
+          </div>
+
+          <div className="p-6 rounded-2xl bg-[#141217]/85 border border-white/10 backdrop-blur-xl">
+            <span className="text-xs text-slate-400 font-medium">Shortlisted</span>
+            <h3 className="text-3xl font-bold text-purple-400 mt-1">
+              {applications.filter((a) => a.status === "Shortlisted" || a.status === "Offered").length}
+            </h3>
+            <p className="text-[11px] text-slate-500 mt-2">Passed to next round</p>
           </div>
 
           <div className="p-6 rounded-2xl bg-[#141217]/85 border border-white/10 backdrop-blur-xl">
@@ -262,12 +315,119 @@ export default function SeekerDashboard({ user, refetch }) {
             <h3 className="text-2xl font-bold text-emerald-400 mt-1">Active</h3>
             <p className="text-[11px] text-slate-500 mt-2">Ready for applications</p>
           </div>
+        </div>
 
-          <div className="p-6 rounded-2xl bg-[#141217]/85 border border-white/10 backdrop-blur-xl">
-            <span className="text-xs text-slate-400 font-medium">Interviews</span>
-            <h3 className="text-3xl font-bold text-white mt-1">0</h3>
-            <p className="text-[11px] text-slate-500 mt-2">No upcoming interviews</p>
+        {/* Applied Jobs Section */}
+        <div className="p-6 sm:p-8 rounded-3xl bg-[#141217]/85 backdrop-blur-2xl border border-white/10 shadow-2xl space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-4">
+            <div>
+              <h2 className="text-xl font-bold text-white tracking-tight">
+                My Job Applications
+              </h2>
+              <p className="text-xs sm:text-sm text-slate-400 mt-1">
+                Track the status and progress of the positions you applied for
+              </p>
+            </div>
+
+            {/* Filter Pills */}
+            <div className="flex flex-wrap items-center gap-2">
+              {statusFilters.map((st) => (
+                <button
+                  key={st}
+                  onClick={() => setStatusFilter(st)}
+                  className={`px-3 py-1 rounded-full text-xs font-medium transition-colors cursor-pointer ${
+                    statusFilter === st
+                      ? "bg-purple-600 text-white shadow-md shadow-purple-500/20"
+                      : "bg-white/5 text-slate-400 hover:text-white border border-white/5"
+                  }`}
+                >
+                  {st}
+                </button>
+              ))}
+            </div>
           </div>
+
+          {loadingApps ? (
+            <div className="py-12 text-center text-slate-400 text-sm animate-pulse">
+              Loading your submitted applications...
+            </div>
+          ) : filteredApplications.length === 0 ? (
+            <div className="py-16 text-center space-y-4">
+              <div className="w-12 h-12 mx-auto rounded-2xl bg-white/5 flex items-center justify-center text-2xl">
+                📂
+              </div>
+              <h3 className="text-base font-semibold text-white">No applications found</h3>
+              <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                {statusFilter === "All"
+                  ? "You haven't submitted any job applications yet. Discover roles and start applying today!"
+                  : `No applications with "${statusFilter}" status.`}
+              </p>
+              <Link
+                href="/jobs"
+                className="inline-block px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#5B60F6] to-[#7C3AED] text-white text-xs font-semibold shadow-lg shadow-indigo-500/25 transition-all"
+              >
+                Browse Open Positions
+              </Link>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="border-b border-white/10 text-slate-400 uppercase tracking-wider font-semibold">
+                    <th className="pb-3 pl-2">Job Title & Company</th>
+                    <th className="pb-3">Applied Date</th>
+                    <th className="pb-3">Resume / CV</th>
+                    <th className="pb-3">Status</th>
+                    <th className="pb-3 text-right pr-2">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                  {filteredApplications.map((app) => (
+                    <tr key={app._id} className="hover:bg-white/[0.02] transition-colors">
+                      <td className="py-4 pl-2">
+                        <div className="font-semibold text-sm text-white">{app.jobTitle}</div>
+                        <div className="text-xs text-purple-400 mt-0.5">{app.companyName}</div>
+                      </td>
+                      <td className="py-4 text-slate-400">
+                        {app.appliedAt ? new Date(app.appliedAt).toLocaleDateString() : "Recent"}
+                      </td>
+                      <td className="py-4">
+                        {app.resumeUrl ? (
+                          <a
+                            href={app.resumeUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-indigo-400 hover:text-indigo-300 underline"
+                          >
+                            View Resume ↗
+                          </a>
+                        ) : (
+                          <span className="text-slate-500">N/A</span>
+                        )}
+                      </td>
+                      <td className="py-4">
+                        <span
+                          className={`px-2.5 py-1 rounded-full border text-[11px] font-semibold ${getStatusBadge(
+                            app.status || "Under Review"
+                          )}`}
+                        >
+                          {app.status || "Under Review"}
+                        </span>
+                      </td>
+                      <td className="py-4 text-right pr-2">
+                        <Link
+                          href={`/jobs/${app.jobId}`}
+                          className="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 hover:text-white transition-colors"
+                        >
+                          View Job
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
         {/* Profile Settings Section */}
