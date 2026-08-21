@@ -67,6 +67,41 @@ export default function ViewApplicants({ jobId = "JOB-101", user }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [toastMessage, setToastMessage] = useState("");
 
+  useEffect(() => {
+    async function loadApplications() {
+      try {
+        const res = await fetch(`/api/applications?jobId=${jobId}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.applications && data.applications.length > 0) {
+            const mapped = data.applications.map((app) => ({
+              id: app._id || app.id,
+              name: app.applicantName,
+              email: app.applicantEmail,
+              avatar:
+                app.applicantImage ||
+                `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(app.applicantName)}`,
+              dateApplied: new Date(app.appliedAt).toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+              }),
+              experience: "3+ years",
+              resumeUrl: app.resumeUrl || "#",
+              portfolioUrl: app.portfolio || "#",
+              coverNote: app.coverNote || "",
+              status: app.status || "Under Review",
+            }));
+            setApplicants([...mapped, ...initialApplicants]);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load live applications:", err);
+      }
+    }
+    loadApplications();
+  }, [jobId]);
+
   const statusOptions = ["Applied", "Under Review", "Shortlisted", "Rejected", "Offered"];
 
   const handleStatusChange = (applicantId, newStatus) => {

@@ -1,10 +1,17 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, Suspense } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
+import { useSession } from "@/lib/auth-client";
 
-export default function BrowseJobsPage() {
+function BrowseJobsContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { data: session } = useSession();
+  const user = session?.user;
+
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -27,6 +34,7 @@ export default function BrowseJobsPage() {
   });
   const [applySubmitting, setApplySubmitting] = useState(false);
   const [applySuccess, setApplySuccess] = useState(false);
+  const [applyError, setApplyError] = useState("");
 
   const categories = [
     "All",
@@ -103,6 +111,37 @@ export default function BrowseJobsPage() {
     return () => clearTimeout(timer);
   }, [searchTerm, selectedCategory, selectedWorkType, selectedLocation, selectedMinSalary, sortBy]);
 
+  // Handle redirect auto-apply when coming back from login
+  useEffect(() => {
+    const applyJobId = searchParams?.get("applyJobId");
+    if (applyJobId && jobs.length > 0 && user) {
+      const match = jobs.find((j) => String(j._id) === applyJobId || String(j.id) === applyJobId);
+      if (match) {
+        openApplyModal(match);
+      }
+    }
+  }, [searchParams, jobs, user]);
+
+  const openApplyModal = (job) => {
+    if (!user) {
+      // User is not logged in! Redirect to login with callbackUrl
+      const returnUrl = `/jobs?applyJobId=${job._id || job.id}`;
+      router.push(`/login?callbackUrl=${encodeURIComponent(returnUrl)}`);
+      return;
+    }
+
+    setSelectedJobForApply(job);
+    setApplyError("");
+    setApplySuccess(false);
+    setApplyForm({
+      name: user.name || "",
+      email: user.email || "",
+      portfolioUrl: "",
+      resumeUrl: "",
+      coverNote: "",
+    });
+  };
+
   // Active filters count
   const activeFilters = useMemo(() => {
     const filters = [];
@@ -154,11 +193,43 @@ export default function BrowseJobsPage() {
     setSortBy("newest");
   };
 
-  const handleApplySubmit = (e) => {
+  const handleApplySubmit = async (e) => {
     e.preventDefault();
+    if (!selectedJobForApply) return;
+
+    if (!user) {
+      const returnUrl = `/jobs?applyJobId=${selectedJobForApply._id || selectedJobForApply.id}`;
+      router.push(`/login?callbackUrl=${encodeURIComponent(returnUrl)}`);
+      return;
+    }
+
     setApplySubmitting(true);
-    setTimeout(() => {
-      setApplySubmitting(false);
+    setApplyError("");
+
+    try {
+      const res = await fetch("/api/applications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jobId: selectedJobForApply._id || selectedJobForApply.id,
+          jobTitle: selectedJobForApply.title,
+          companyName: selectedJobForApply.companyName,
+          fullName: applyForm.name,
+          email: applyForm.email,
+          resumeUrl: applyForm.resumeUrl,
+          portfolio: applyForm.portfolioUrl,
+          coverNote: applyForm.coverNote,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setApplyError(data.error || "Failed to submit application.");
+        setApplySubmitting(false);
+        return;
+      }
+
       setApplySuccess(true);
       setTimeout(() => {
         setApplySuccess(false);
@@ -170,8 +241,13 @@ export default function BrowseJobsPage() {
           resumeUrl: "",
           coverNote: "",
         });
-      }, 2000);
-    }, 800);
+      }, 2500);
+    } catch (err) {
+      console.error(err);
+      setApplyError("Network error while submitting application.");
+    } finally {
+      setApplySubmitting(false);
+    }
   };
 
   const containerVariants = {
@@ -535,9 +611,9 @@ export default function BrowseJobsPage() {
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        setSelectedJobForApply(job);
+                        openApplyModal(job);
                       }}
-                      className="px-3 py-1.5 rounded-full bg-purple-500/15 hover:bg-purple-500/25 border border-purple-500/30 text-purple-300 text-xs font-medium transition-all cursor-pointer"
+                      className="px-3.5 py-1.5 rounded-full bg-purple-500/15 hover:bg-purple-500/25 border border-purple-500/30 text-purple-300 text-xs font-medium transition-all cursor-pointer"
                     >
                       Quick Apply
                     </button>
@@ -581,14 +657,22 @@ export default function BrowseJobsPage() {
                 </button>
               </div>
 
+              {/* Error Notice */}
+              {applyError && (
+                <div className="p-3.5 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
+                  <span>⚠️</span>
+                  <span>{applyError}</span>
+                </div>
+              )}
+
               {applySuccess ? (
                 <div className="py-8 text-center space-y-3">
-                  <div className="w-12 h-12 mx-auto rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-2xl">
+                  <div className="w-12 h-12 mx-auto rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-2xl font-bold">
                     ✓
                   </div>
                   <h4 className="text-lg font-bold text-white">Application Submitted!</h4>
-                  <p className="text-xs text-slate-400">
-                    The recruiter at {selectedJobForApply.companyName} has received your application.
+                  <p className="text-xs text-slate-300 max-w-sm mx-auto">
+                    The recruiter at {selectedJobForApply.companyName} has received your profile and CV.
                   </p>
                 </div>
               ) : (
@@ -675,5 +759,13 @@ export default function BrowseJobsPage() {
         )}
       </AnimatePresence>
     </div>
+  );
+}
+
+export default function BrowseJobsPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#070709] text-white pt-36 text-center">Loading jobs...</div>}>
+      <BrowseJobsContent />
+    </Suspense>
   );
 }

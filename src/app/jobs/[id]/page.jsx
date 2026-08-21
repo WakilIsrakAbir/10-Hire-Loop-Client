@@ -5,11 +5,14 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { motion, AnimatePresence } from "motion/react";
+import { useSession } from "@/lib/auth-client";
 
 export default function JobDetailsPage() {
   const params = useParams();
   const router = useRouter();
   const jobId = params?.id;
+  const { data: session } = useSession();
+  const user = session?.user;
 
   const [job, setJob] = useState(null);
   const [relatedJobs, setRelatedJobs] = useState([]);
@@ -28,6 +31,7 @@ export default function JobDetailsPage() {
   });
   const [submitting, setSubmitting] = useState(false);
   const [appliedSuccess, setAppliedSuccess] = useState(false);
+  const [applyError, setApplyError] = useState("");
 
   useEffect(() => {
     if (!jobId) return;
@@ -64,6 +68,17 @@ export default function JobDetailsPage() {
     fetchJobDetails();
   }, [jobId]);
 
+  // Pre-fill user details if logged in
+  useEffect(() => {
+    if (user) {
+      setForm((prev) => ({
+        ...prev,
+        fullName: prev.fullName || user.name || "",
+        email: prev.email || user.email || "",
+      }));
+    }
+  }, [user]);
+
   const handleShare = () => {
     if (typeof window !== "undefined") {
       navigator.clipboard.writeText(window.location.href);
@@ -72,19 +87,58 @@ export default function JobDetailsPage() {
     }
   };
 
-  const handleApply = (e) => {
-    e.preventDefault();
-    setSubmitting(true);
-    setTimeout(() => {
-      setSubmitting(false);
-      setAppliedSuccess(true);
-    }, 900);
-  };
-
   const scrollToApply = () => {
+    if (!user) {
+      router.push(`/login?callbackUrl=${encodeURIComponent(`/jobs/${jobId}`)}`);
+      return;
+    }
     const el = document.getElementById("apply-section");
     if (el) {
       el.scrollIntoView({ behavior: "smooth" });
+    }
+  };
+
+  const handleApply = async (e) => {
+    e.preventDefault();
+
+    if (!user) {
+      router.push(`/login?callbackUrl=${encodeURIComponent(`/jobs/${jobId}`)}`);
+      return;
+    }
+
+    setSubmitting(true);
+    setApplyError("");
+
+    try {
+      const res = await fetch("/api/applications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jobId: job._id || job.id || jobId,
+          jobTitle: job.title,
+          companyName: job.companyName,
+          fullName: form.fullName,
+          email: form.email,
+          resumeUrl: form.resumeUrl,
+          portfolio: form.portfolio,
+          coverNote: form.coverNote,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setApplyError(data.error || "Failed to submit application.");
+        setSubmitting(false);
+        return;
+      }
+
+      setAppliedSuccess(true);
+    } catch (err) {
+      console.error(err);
+      setApplyError("Network error while submitting application.");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -141,7 +195,6 @@ export default function JobDetailsPage() {
   const locationDisplay = job.location || "Remote";
   const workTypeDisplay = job.workType || job.jobType || (job.isRemote ? "Remote" : "Hybrid");
 
-  // Responsibilities list (convert multiline or string)
   const responsibilities = job.responsibilities
     ? job.responsibilities.split("\n").filter((r) => r.trim())
     : [
@@ -151,7 +204,6 @@ export default function JobDetailsPage() {
         "Proactively identify technical debt and performance bottlenecks in existing systems.",
       ];
 
-  // Requirements list
   const requirements = job.requirements
     ? job.requirements.split("\n").filter((r) => r.trim())
     : [
@@ -161,7 +213,6 @@ export default function JobDetailsPage() {
         "Strong communication skills and enthusiasm for fast-paced collaborative startup environments.",
       ];
 
-  // Benefits list
   const benefits = job.benefits
     ? job.benefits.split("\n").filter((b) => b.trim())
     : [
@@ -322,7 +373,7 @@ export default function JobDetailsPage() {
                 onClick={scrollToApply}
                 className="flex-1 md:flex-initial px-6 py-3 rounded-2xl bg-white hover:bg-slate-200 text-black font-bold text-xs sm:text-sm transition-all shadow-xl shadow-white/10 hover:scale-105 active:scale-95 cursor-pointer"
               >
-                Apply for this Role →
+                {user ? "Apply for this Role →" : "Sign in to Apply →"}
               </button>
             </div>
           </div>
@@ -412,6 +463,30 @@ export default function JobDetailsPage() {
                 </p>
               </div>
 
+              {/* Login required banner if not signed in */}
+              {!user && (
+                <div className="p-4 rounded-2xl bg-purple-500/10 border border-purple-500/20 text-xs text-purple-300 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-base">🔒</span>
+                    <span>You must be signed in to submit your job application.</span>
+                  </div>
+                  <Link
+                    href={`/login?callbackUrl=${encodeURIComponent(`/jobs/${jobId}`)}`}
+                    className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-semibold shrink-0 text-center transition-all"
+                  >
+                    Sign In with HireLoop →
+                  </Link>
+                </div>
+              )}
+
+              {/* Error notice */}
+              {applyError && (
+                <div className="p-3.5 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
+                  <span>⚠️</span>
+                  <span>{applyError}</span>
+                </div>
+              )}
+
               {appliedSuccess ? (
                 <div className="p-8 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-center space-y-3">
                   <div className="w-12 h-12 mx-auto rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-2xl font-bold">
@@ -419,7 +494,7 @@ export default function JobDetailsPage() {
                   </div>
                   <h4 className="text-lg font-bold text-white">Application Received!</h4>
                   <p className="text-xs text-slate-300 max-w-sm mx-auto">
-                    Thank you for applying. The recruiter will review your profile and get in touch with you via email.
+                    Thank you for applying. The recruiter at {job.companyName} has received your profile and CV.
                   </p>
                   <button
                     onClick={() => setAppliedSuccess(false)}
