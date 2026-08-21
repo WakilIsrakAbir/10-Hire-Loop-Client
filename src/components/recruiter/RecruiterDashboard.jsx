@@ -352,7 +352,7 @@ export default function RecruiterDashboard({ user }) {
                     </span>
 
                     <Link
-                      href={`/dashboard/jobs/JOB-101/applicants`}
+                      href={`/dashboard/recruiter/jobs/JOB-101/applicants`}
                       className="p-2 rounded-xl text-zinc-400 hover:text-white hover:bg-white/5 transition-colors"
                       title="Review candidate"
                     >

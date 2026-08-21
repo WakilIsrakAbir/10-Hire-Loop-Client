@@ -504,7 +504,7 @@ export default function ManageJobs({ user }) {
                           <div className="flex items-center justify-end gap-2">
                             {/* View Applicants Link */}
                             <Link
-                              href={`/dashboard/jobs/${job.id}/applicants`}
+                              href={`/dashboard/recruiter/jobs/${job.id}/applicants`}
                               className="px-2.5 py-1 rounded-lg bg-indigo-500/10 text-indigo-300 hover:bg-indigo-500/20 border border-indigo-500/20 text-[11px] font-medium transition-colors"
                               title="View Applicants"
                             >
