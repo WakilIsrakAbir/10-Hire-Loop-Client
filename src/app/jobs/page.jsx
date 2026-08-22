@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { motion, AnimatePresence } from "motion/react";
 import { useSession } from "@/lib/auth-client";
 import { JobCardSkeleton } from "@/components/ui/loading/ShimmerSkeleton";
 import PageLoader from "@/components/ui/loading/PageLoader";
