@@ -306,9 +306,8 @@ export default function SeekerApplicationsRoute() {
                     </div>
                   )}
                 </div>
-              </>
+              </div>
             )}
-          </div>
         </main>
       </div>
     </div>
