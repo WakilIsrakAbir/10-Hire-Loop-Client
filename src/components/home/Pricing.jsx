@@ -2,10 +2,16 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
+import { useSession } from "@/lib/auth-client";
 
 export default function Pricing() {
+  const router = useRouter();
+  const { data: session } = useSession();
+  const user = session?.user;
   const [billingCycle, setBillingCycle] = useState("monthly"); // "monthly" | "yearly"
+  const [upgrading, setUpgrading] = useState(false);
 
   const plans = [
     {
@@ -246,15 +252,57 @@ export default function Pricing() {
 
               {/* Action Button */}
               <div className="pt-2">
-                <Link
-                  href="/register"
-                  className={`group w-full py-3.5 px-5 rounded-2xl font-semibold text-sm flex items-center justify-center gap-2 transition-all duration-200 shadow-lg ${
+                <button
+                  type="button"
+                  disabled={upgrading}
+                  onClick={async () => {
+                    if (!user) {
+                      if (plan.id === "starter") {
+                        router.push("/register");
+                      } else {
+                        router.push("/login?callbackUrl=/pricing");
+                      }
+                      return;
+                    }
+
+                    if (plan.id === "starter") {
+                      router.push("/dashboard/seeker");
+                    } else if (plan.id === "growth") {
+                      try {
+                        setUpgrading(true);
+                        const res = await fetch("/api/stripe/upgrade", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ plan: "pro", billingCycle }),
+                        });
+                        const data = await res.json();
+                        if (res.ok && data.success) {
+                          router.push("/pricing/success");
+                        } else {
+                          router.push("/pricing");
+                        }
+                      } catch {
+                        router.push("/pricing");
+                      } finally {
+                        setUpgrading(false);
+                      }
+                    } else {
+                      router.push("/pricing");
+                    }
+                  }}
+                  className={`group w-full py-3.5 px-5 rounded-2xl font-semibold text-sm flex items-center justify-center gap-2 transition-all duration-200 shadow-lg cursor-pointer disabled:opacity-50 ${
                     plan.buttonStyle === "primary"
                       ? "bg-white text-[#0A0A0C] hover:bg-slate-200 active:scale-[0.99]"
                       : "bg-white/5 hover:bg-white/10 text-white border border-white/10 active:scale-[0.99]"
                   }`}
                 >
-                  <span>Choose This Plan</span>
+                  <span>
+                    {upgrading && plan.id === "growth"
+                      ? "Processing Upgrade..."
+                      : user && plan.id === "starter"
+                      ? "Go to Dashboard"
+                      : "Choose This Plan"}
+                  </span>
                   <svg
                     className="w-4 h-4 transform group-hover:translate-x-1 transition-transform duration-200"
                     fill="none"
@@ -268,7 +316,7 @@ export default function Pricing() {
                       d="M14 5l7 7m0 0l-7 7m7-7H3"
                     />
                   </svg>
-                </Link>
+                </button>
               </div>
             </motion.div>
           );

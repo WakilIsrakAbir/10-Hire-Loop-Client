@@ -2,436 +2,329 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { updateUser } from "@/lib/auth-client";
+import { useRouter } from "next/navigation";
+import SeekerSidebar from "./SeekerSidebar";
+import { ProfileSettingsForm } from "@/components/ProfileSettingsForm";
+import { MetricCardsSkeleton } from "@/components/ui/loading/ShimmerSkeleton";
 
-// Profile Settings Form
-export function ProfileSettingsForm({ user, refetch }) {
-  const [formData, setFormData] = useState({
-    name: user?.name || "",
-    image: user?.image || "",
-  });
+export { ProfileSettingsForm };
 
-  const [loading, setLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
-  const [successMessage, setSuccessMessage] = useState("");
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-    if (errorMessage) setErrorMessage("");
-    if (successMessage) setSuccessMessage("");
-  };
-
-  const handleUpdateProfile = async (e) => {
-    e.preventDefault();
-    setErrorMessage("");
-    setSuccessMessage("");
-
-    if (!formData.name.trim()) {
-      setErrorMessage("Name cannot be empty.");
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      const response = await updateUser({
-        name: formData.name.trim(),
-        image: formData.image.trim() || undefined,
-      });
-
-      if (response?.error) {
-        setErrorMessage(response.error.message || "Failed to update profile.");
-        setLoading(false);
-        return;
-      }
-
-      setSuccessMessage("Profile updated successfully!");
-      if (refetch) await refetch();
-      setLoading(false);
-    } catch (err) {
-      setErrorMessage(
-        err?.message || "An unexpected error occurred while updating profile."
-      );
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="rounded-3xl bg-[#141217]/85 backdrop-blur-2xl border border-white/10 p-6 sm:p-8 shadow-2xl">
-      <div className="mb-6 border-b border-white/10 pb-4">
-        <h2 className="text-xl font-bold text-white tracking-tight">
-          Profile Settings
-        </h2>
-        <p className="text-xs sm:text-sm text-slate-400 mt-1">
-          Update your account name and avatar picture URL
-        </p>
-      </div>
-
-      {errorMessage && (
-        <div className="mb-6 p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-sm flex items-start gap-3 animate-in fade-in duration-200">
-          <svg className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <span>{errorMessage}</span>
-        </div>
-      )}
-
-      {successMessage && (
-        <div className="mb-6 p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-sm flex items-start gap-3 animate-in fade-in duration-200">
-          <svg className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <span>{successMessage}</span>
-        </div>
-      )}
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="flex flex-col items-center justify-center p-6 rounded-2xl bg-white/5 border border-white/10 text-center">
-          <div className="relative mb-4">
-            {formData.image ? (
-              <img
-                src={formData.image}
-                alt={formData.name || "Avatar"}
-                className="w-24 h-24 rounded-2xl object-cover border-2 border-indigo-500 shadow-xl shadow-indigo-500/25"
-                onError={(e) => {
-                  e.currentTarget.src = "";
-                }}
-              />
-            ) : (
-              <div className="w-24 h-24 rounded-2xl bg-gradient-to-tr from-[#5B60F6] to-[#7C3AED] text-white flex items-center justify-center font-bold text-3xl uppercase shadow-xl shadow-indigo-500/30">
-                {formData.name ? formData.name.charAt(0) : "U"}
-              </div>
-            )}
-          </div>
-          <h4 className="text-sm font-semibold text-white truncate max-w-full">
-            {formData.name || "Your Name"}
-          </h4>
-          <p className="text-xs text-slate-400 truncate max-w-full mt-0.5">
-            {user?.email}
-          </p>
-          <div className="mt-3 flex items-center gap-1.5 flex-wrap justify-center">
-            <span className="px-2.5 py-0.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-[11px] font-medium uppercase tracking-wider">
-              {user?.role === "recruiter" ? "Recruiter" : "Job Seeker"}
-            </span>
-          </div>
-        </div>
-
-        <form onSubmit={handleUpdateProfile} className="lg:col-span-2 space-y-4">
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-2">
-              Full Name
-            </label>
-            <div className="relative flex items-center">
-              <span className="absolute left-3.5 text-slate-400">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
-              </span>
-              <input
-                type="text"
-                name="name"
-                value={formData.name}
-                onChange={handleChange}
-                placeholder="Enter your full name"
-                required
-                className="w-full pl-10 pr-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all duration-200"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
-              Email Address <span className="text-[10px] text-slate-500 lowercase">(read-only)</span>
-            </label>
-            <div className="relative flex items-center">
-              <span className="absolute left-3.5 text-slate-500">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
-                </svg>
-              </span>
-              <input
-                type="email"
-                value={user?.email || ""}
-                disabled
-                className="w-full pl-10 pr-4 py-3 rounded-xl bg-white/[0.02] border border-white/5 text-slate-400 text-sm cursor-not-allowed"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-2">
-              Profile Picture URL
-            </label>
-            <div className="relative flex items-center">
-              <span className="absolute left-3.5 text-slate-400">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-              </span>
-              <input
-                type="url"
-                name="image"
-                value={formData.image}
-                onChange={handleChange}
-                placeholder="https://example.com/your-avatar.jpg"
-                className="w-full pl-10 pr-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all duration-200"
-              />
-            </div>
-          </div>
-
-          <div className="pt-2">
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full sm:w-auto px-6 py-3 rounded-xl font-semibold text-sm text-white bg-gradient-to-r from-[#5B60F6] to-[#7C3AED] hover:from-[#4F53E8] hover:to-[#6D28D9] shadow-lg shadow-indigo-500/25 transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer"
-            >
-              {loading ? "Saving changes..." : "Save Changes"}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
-
-// Job Seeker Dashboard Main View Component
 export default function SeekerDashboard({ user, refetch }) {
+  const router = useRouter();
   const [applications, setApplications] = useState([]);
-  const [loadingApps, setLoadingApps] = useState(true);
-  const [statusFilter, setStatusFilter] = useState("All");
+  const [savedJobsCount, setSavedJobsCount] = useState(0);
+  const [quota, setQuota] = useState({
+    appliedCount: 0,
+    maxLimit: 3,
+    remaining: 3,
+    isPro: false,
+    limitReached: false,
+  });
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function fetchMyApplications() {
+    async function loadDashboardData() {
       try {
-        setLoadingApps(true);
-        const res = await fetch("/api/applications");
-        if (res.ok) {
-          const data = await res.json();
+        setLoading(true);
+        // 1. Fetch applications
+        const appRes = await fetch("/api/applications");
+        if (appRes.ok) {
+          const data = await appRes.json();
           setApplications(data.applications || []);
+          if (data.quota) setQuota(data.quota);
+        }
+
+        // 2. Fetch saved jobs count
+        const saveRes = await fetch("/api/saved-jobs");
+        if (saveRes.ok) {
+          const data = await saveRes.json();
+          setSavedJobsCount(data.count || (data.savedJobs || []).length);
         }
       } catch (err) {
-        console.error("Failed to load applications:", err);
+        console.error("Failed to load seeker dashboard data:", err);
       } finally {
-        setLoadingApps(false);
+        setLoading(false);
       }
     }
-    fetchMyApplications();
+    loadDashboardData();
   }, []);
 
-  const statusFilters = ["All", "Under Review", "Shortlisted", "Offered", "Rejected"];
+  // Status metrics
+  const appliedCount = applications.length;
+  const underReviewCount = applications.filter((a) => (a.status || "Under Review") === "Under Review").length;
+  const shortlistedCount = applications.filter((a) => a.status === "Shortlisted").length;
+  const rejectedCount = applications.filter((a) => a.status === "Rejected").length;
+  const offeredCount = applications.filter((a) => a.status === "Offered").length;
+  const interviewsCount = shortlistedCount + offeredCount;
 
-  const filteredApplications = applications.filter((app) => {
-    if (statusFilter === "All") return true;
-    return app.status === statusFilter;
-  });
-
-  const getStatusBadge = (status) => {
-    switch (status) {
-      case "Offered":
-        return "bg-emerald-500/15 border-emerald-500/30 text-emerald-400";
-      case "Shortlisted":
-        return "bg-purple-500/15 border-purple-500/30 text-purple-300";
-      case "Rejected":
-        return "bg-rose-500/15 border-rose-500/30 text-rose-400";
-      case "Under Review":
-      default:
-        return "bg-indigo-500/15 border-indigo-500/30 text-indigo-300";
-    }
-  };
+  // Max for bar chart proportion
+  const maxStatus = Math.max(1, appliedCount, underReviewCount, shortlistedCount, rejectedCount, offeredCount);
 
   return (
-    <div className="relative min-h-screen bg-[#070709] text-white pt-32 pb-24 px-4 sm:px-6 lg:px-8 overflow-hidden">
-      {/* Vertical Stripes & Ambient Light */}
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff04_1px,transparent_1px)] bg-[size:4.5rem_100%] pointer-events-none" />
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[350px] bg-gradient-to-tr from-[#7C3AED]/15 to-[#5B60F6]/20 blur-[150px] rounded-full pointer-events-none" />
+    <div className="min-h-screen bg-[#0c0c0e] text-white flex">
+      {/* Unified Left Sidebar */}
+      <SeekerSidebar user={user} isPro={quota.isPro} />
 
-      <div className="relative z-10 max-w-7xl mx-auto space-y-8">
-        {/* Welcome Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-6 sm:p-8 rounded-3xl bg-[#141217]/85 backdrop-blur-2xl border border-white/10 shadow-2xl">
+      {/* Main Content Area matching Figma Screenshot 3 */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
+        {/* Top Header Bar */}
+        <header className="h-20 px-8 border-b border-white/5 flex items-center justify-between gap-6 bg-[#0c0c0e]/80 backdrop-blur-xl sticky top-0 z-30">
+          {/* Search bar */}
+          <div className="relative flex-1 max-w-md">
+            <svg
+              className="w-4 h-4 text-zinc-400 absolute left-3.5 top-1/2 -translate-y-1/2"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input
+              type="text"
+              placeholder="Search for opportunities..."
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-purple-500"
+            />
+          </div>
+
+          {/* Action icons & Profile */}
           <div className="flex items-center gap-4">
-            {user?.image ? (
-              <img
-                src={user.image}
-                alt={user.name || "User"}
-                className="w-16 h-16 rounded-2xl object-cover border-2 border-indigo-500 shadow-lg shadow-indigo-500/25"
-              />
-            ) : (
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-[#5B60F6] to-[#7C3AED] text-white flex items-center justify-center font-bold text-xl uppercase shadow-lg shadow-indigo-500/30">
-                {user?.name ? user.name.charAt(0) : "U"}
-              </div>
-            )}
-            <div>
-              <div className="flex items-center gap-2.5 flex-wrap">
-                <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-                  Welcome back, {user?.name || "Job Seeker"}! 👋
-                </h1>
-                <span className="px-2.5 py-0.5 rounded-full bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 text-xs font-semibold uppercase tracking-wider">
-                  Job Seeker
-                </span>
-              </div>
-              <p className="text-xs sm:text-sm text-slate-400 mt-1 flex items-center gap-2 flex-wrap">
-                <span>{user?.email}</span>
-                <span className="text-slate-600">•</span>
-                <span>Active Candidate</span>
-              </p>
+            <button className="p-2 rounded-xl bg-white/5 border border-white/5 text-zinc-400 hover:text-white transition-colors">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
+            </button>
+
+            <button className="p-2 rounded-xl bg-white/5 border border-white/5 text-zinc-400 hover:text-white transition-colors relative">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+              </svg>
+              <span className="w-2 h-2 rounded-full bg-indigo-500 absolute top-2 right-2 ring-2 ring-[#0c0c0e]" />
+            </button>
+
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#5B60F6] to-[#7C3AED] flex items-center justify-center font-bold text-xs overflow-hidden shadow-lg">
+              {user?.image ? (
+                <img src={user.image} alt={user.name} className="w-full h-full object-cover" />
+              ) : (
+                (user?.name || "U").charAt(0).toUpperCase()
+              )}
             </div>
           </div>
+        </header>
 
-          <Link
-            href="/jobs"
-            className="self-start sm:self-auto px-5 py-2.5 rounded-xl font-semibold text-xs text-white bg-gradient-to-r from-[#5B60F6] to-[#7C3AED] hover:from-[#4F53E8] hover:to-[#6D28D9] shadow-lg shadow-indigo-500/25 transition-all duration-200"
-          >
-            Browse Open Jobs →
-          </Link>
-        </div>
-
-        {/* Quick Stats Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-          <div className="p-6 rounded-2xl bg-[#141217]/85 border border-white/10 backdrop-blur-xl">
-            <span className="text-xs text-slate-400 font-medium">Applied Jobs</span>
-            <h3 className="text-3xl font-bold text-white mt-1">{applications.length}</h3>
-            <p className="text-[11px] text-indigo-400 mt-2">Active applications</p>
-          </div>
-
-          <div className="p-6 rounded-2xl bg-[#141217]/85 border border-white/10 backdrop-blur-xl">
-            <span className="text-xs text-slate-400 font-medium">Under Review</span>
-            <h3 className="text-3xl font-bold text-white mt-1">
-              {applications.filter((a) => (a.status || "Under Review") === "Under Review").length}
-            </h3>
-            <p className="text-[11px] text-slate-500 mt-2">In review by recruiters</p>
-          </div>
-
-          <div className="p-6 rounded-2xl bg-[#141217]/85 border border-white/10 backdrop-blur-xl">
-            <span className="text-xs text-slate-400 font-medium">Shortlisted</span>
-            <h3 className="text-3xl font-bold text-purple-400 mt-1">
-              {applications.filter((a) => a.status === "Shortlisted" || a.status === "Offered").length}
-            </h3>
-            <p className="text-[11px] text-slate-500 mt-2">Passed to next round</p>
-          </div>
-
-          <div className="p-6 rounded-2xl bg-[#141217]/85 border border-white/10 backdrop-blur-xl">
-            <span className="text-xs text-slate-400 font-medium">Profile Status</span>
-            <h3 className="text-2xl font-bold text-emerald-400 mt-1">Active</h3>
-            <p className="text-[11px] text-slate-500 mt-2">Ready for applications</p>
-          </div>
-        </div>
-
-        {/* Applied Jobs Section */}
-        <div className="p-6 sm:p-8 rounded-3xl bg-[#141217]/85 backdrop-blur-2xl border border-white/10 shadow-2xl space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-4">
-            <div>
-              <h2 className="text-xl font-bold text-white tracking-tight">
-                My Job Applications
-              </h2>
-              <p className="text-xs sm:text-sm text-slate-400 mt-1">
-                Track the status and progress of the positions you applied for
-              </p>
-            </div>
-
-            {/* Filter Pills */}
-            <div className="flex flex-wrap items-center gap-2">
-              {statusFilters.map((st) => (
-                <button
-                  key={st}
-                  onClick={() => setStatusFilter(st)}
-                  className={`px-3 py-1 rounded-full text-xs font-medium transition-colors cursor-pointer ${
-                    statusFilter === st
-                      ? "bg-purple-600 text-white shadow-md shadow-purple-500/20"
-                      : "bg-white/5 text-slate-400 hover:text-white border border-white/5"
-                  }`}
-                >
-                  {st}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {loadingApps ? (
-            <div className="py-12 text-center text-slate-400 text-sm animate-pulse">
-              Loading your submitted applications...
-            </div>
-          ) : filteredApplications.length === 0 ? (
-            <div className="py-16 text-center space-y-4">
-              <div className="w-12 h-12 mx-auto rounded-2xl bg-white/5 flex items-center justify-center text-2xl">
-                📂
-              </div>
-              <h3 className="text-base font-semibold text-white">No applications found</h3>
-              <p className="text-xs text-slate-400 max-w-sm mx-auto">
-                {statusFilter === "All"
-                  ? "You haven't submitted any job applications yet. Discover roles and start applying today!"
-                  : `No applications with "${statusFilter}" status.`}
-              </p>
-              <Link
-                href="/jobs"
-                className="inline-block px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#5B60F6] to-[#7C3AED] text-white text-xs font-semibold shadow-lg shadow-indigo-500/25 transition-all"
-              >
-                Browse Open Positions
-              </Link>
-            </div>
+        {/* Dashboard Body */}
+        <main className="p-8 space-y-8 max-w-7xl">
+          {/* Top 4 Stat Cards matching Figma Screenshot 3 */}
+          {loading ? (
+            <MetricCardsSkeleton count={4} />
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead>
-                  <tr className="border-b border-white/10 text-slate-400 uppercase tracking-wider font-semibold">
-                    <th className="pb-3 pl-2">Job Title & Company</th>
-                    <th className="pb-3">Applied Date</th>
-                    <th className="pb-3">Resume / CV</th>
-                    <th className="pb-3">Status</th>
-                    <th className="pb-3 text-right pr-2">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/5">
-                  {filteredApplications.map((app) => (
-                    <tr key={app._id} className="hover:bg-white/[0.02] transition-colors">
-                      <td className="py-4 pl-2">
-                        <div className="font-semibold text-sm text-white">{app.jobTitle}</div>
-                        <div className="text-xs text-purple-400 mt-0.5">{app.companyName}</div>
-                      </td>
-                      <td className="py-4 text-slate-400">
-                        {app.appliedAt ? new Date(app.appliedAt).toLocaleDateString() : "Recent"}
-                      </td>
-                      <td className="py-4">
-                        {app.resumeUrl ? (
-                          <a
-                            href={app.resumeUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-indigo-400 hover:text-indigo-300 underline"
-                          >
-                            View Resume ↗
-                          </a>
-                        ) : (
-                          <span className="text-slate-500">N/A</span>
-                        )}
-                      </td>
-                      <td className="py-4">
-                        <span
-                          className={`px-2.5 py-1 rounded-full border text-[11px] font-semibold ${getStatusBadge(
-                            app.status || "Under Review"
-                          )}`}
-                        >
-                          {app.status || "Under Review"}
-                        </span>
-                      </td>
-                      <td className="py-4 text-right pr-2">
-                        <Link
-                          href={`/jobs/${app.jobId}`}
-                          className="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 hover:text-white transition-colors"
-                        >
-                          View Job
-                        </Link>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+              {/* 1. Saved Jobs */}
+              <div className="p-6 rounded-3xl bg-[#141217] border border-white/5 flex items-start justify-between">
+                <div>
+                  <span className="text-xs text-zinc-400 font-medium">Saved Jobs</span>
+                  <h3 className="text-3xl font-extrabold text-white mt-2">{savedJobsCount}</h3>
+                </div>
+                <div className="p-2.5 rounded-2xl bg-white/5 text-zinc-400">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                  </svg>
+                </div>
+              </div>
+
+              {/* 2. Applications Submitted */}
+              <div className="p-6 rounded-3xl bg-[#141217] border border-white/5 flex items-start justify-between">
+                <div>
+                  <span className="text-xs text-zinc-400 font-medium">Applications Submitted</span>
+                  <h3 className="text-3xl font-extrabold text-white mt-2">{appliedCount}</h3>
+                </div>
+                <div className="p-2.5 rounded-2xl bg-white/5 text-purple-400">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                  </svg>
+                </div>
+              </div>
+
+              {/* 3. Interviews Scheduled */}
+              <div className="p-6 rounded-3xl bg-[#141217] border border-white/5 flex items-start justify-between">
+                <div>
+                  <span className="text-xs text-zinc-400 font-medium">Interviews Scheduled</span>
+                  <h3 className="text-3xl font-extrabold text-amber-400 mt-2">{interviewsCount}</h3>
+                </div>
+                <div className="p-2.5 rounded-2xl bg-white/5 text-amber-400">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                </div>
+              </div>
+
+              {/* 4. Offers Received */}
+              <div className="p-6 rounded-3xl bg-[#141217] border border-white/5 flex items-start justify-between">
+                <div>
+                  <span className="text-xs text-zinc-400 font-medium">Offers Received</span>
+                  <h3 className="text-3xl font-extrabold text-emerald-400 mt-2">{offeredCount}</h3>
+                </div>
+                <div className="p-2.5 rounded-2xl bg-white/5 text-emerald-400">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+              </div>
             </div>
           )}
-        </div>
 
-        {/* Profile Settings Section */}
-        <ProfileSettingsForm key={user?.id || user?.email} user={user} refetch={refetch} />
+          {/* 2-Column Analytics Section (Profile Card & Application Status Bars) */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Left: User Profile Card */}
+            <div className="p-7 rounded-3xl bg-[#141217] border border-white/5 flex flex-col justify-between space-y-6">
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-[#5B60F6] to-[#7C3AED] text-white flex items-center justify-center font-bold text-2xl overflow-hidden shadow-xl shrink-0">
+                  {user?.image ? (
+                    <img src={user.image} alt={user.name} className="w-full h-full object-cover" />
+                  ) : (
+                    (user?.name || "U").charAt(0).toUpperCase()
+                  )}
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-white tracking-tight">{user?.name || "Alex Rivera"}</h3>
+                  <p className="text-xs text-zinc-400 mt-0.5">{user?.email}</p>
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-white/5 flex items-center justify-between">
+                <div className="text-xs text-zinc-400">
+                  <span>Tier: </span>
+                  <span className="font-semibold text-purple-400">
+                    {quota.isPro ? "Professional Member" : "Free Seeker Plan"}
+                  </span>
+                </div>
+                <Link
+                  href="/dashboard/seeker/settings"
+                  className="px-5 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-white transition-colors"
+                >
+                  Edit Profile
+                </Link>
+              </div>
+            </div>
+
+            {/* Right: Application Status Horizontal Bars matching Figma Screenshot 3 */}
+            <div className="p-7 rounded-3xl bg-[#141217] border border-white/5 space-y-4">
+              <h3 className="text-sm font-bold text-white tracking-tight">Application Status</h3>
+
+              <div className="space-y-3 pt-1 text-xs">
+                {/* Applied */}
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-zinc-400 font-medium">
+                    <span>Applied</span>
+                    <span className="text-white font-bold">{appliedCount}</span>
+                  </div>
+                  <div className="h-2 w-full rounded-full bg-white/5 overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-white transition-all duration-500"
+                      style={{ width: `${Math.min(100, (appliedCount / maxStatus) * 100)}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* Under Review */}
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-zinc-400 font-medium">
+                    <span>Under Review</span>
+                    <span className="text-amber-400 font-bold">{underReviewCount}</span>
+                  </div>
+                  <div className="h-2 w-full rounded-full bg-white/5 overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-amber-500 transition-all duration-500"
+                      style={{ width: `${Math.min(100, (underReviewCount / maxStatus) * 100)}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* Shortlisted */}
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-zinc-400 font-medium">
+                    <span>Shortlisted</span>
+                    <span className="text-indigo-400 font-bold">{shortlistedCount}</span>
+                  </div>
+                  <div className="h-2 w-full rounded-full bg-white/5 overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-indigo-500 transition-all duration-500"
+                      style={{ width: `${Math.min(100, (shortlistedCount / maxStatus) * 100)}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* Rejected */}
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-zinc-400 font-medium">
+                    <span>Rejected</span>
+                    <span className="text-rose-400 font-bold">{rejectedCount}</span>
+                  </div>
+                  <div className="h-2 w-full rounded-full bg-white/5 overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-rose-500 transition-all duration-500"
+                      style={{ width: `${Math.min(100, (rejectedCount / maxStatus) * 100)}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* Offered */}
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-zinc-400 font-medium">
+                    <span>Offered</span>
+                    <span className="text-emerald-400 font-bold">{offeredCount}</span>
+                  </div>
+                  <div className="h-2 w-full rounded-full bg-white/5 overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-emerald-500 transition-all duration-500"
+                      style={{ width: `${Math.min(100, (offeredCount / maxStatus) * 100)}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Recent Activity Feed matching Figma Screenshot 3 */}
+          <div className="p-7 rounded-3xl bg-[#141217] border border-white/5 space-y-5">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-white tracking-tight">Recent Activity</h3>
+              <Link href="/dashboard/seeker/applications" className="text-xs text-purple-400 hover:text-purple-300">
+                View All Activity →
+              </Link>
+            </div>
+
+            <div className="space-y-3">
+              {applications.length > 0 ? (
+                applications.slice(0, 3).map((app, idx) => (
+                  <div
+                    key={app._id || idx}
+                    className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 flex items-center justify-between gap-4"
+                  >
+                    <div className="flex items-center gap-3.5">
+                      <div className="w-9 h-9 rounded-xl bg-purple-500/10 text-purple-400 flex items-center justify-center text-sm">
+                        🔄
+                      </div>
+                      <div>
+                        <p className="text-xs text-zinc-200">
+                          Application for <strong className="text-white">{app.jobTitle}</strong> at{" "}
+                          <span className="text-purple-400">{app.companyName}</span> updated to{" "}
+                          <span className="underline decoration-purple-500/50">{app.status || "Under Review"}</span>
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-[11px] text-zinc-500 shrink-0">
+                      {app.appliedAt ? new Date(app.appliedAt).toLocaleDateString() : "Recent"}
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <div className="py-8 text-center text-xs text-zinc-500">
+                  No recent activity yet. Start browsing and applying for jobs!
+                </div>
+              )}
+            </div>
+          </div>
+        </main>
       </div>
     </div>
   );

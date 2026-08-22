@@ -54,8 +54,8 @@ export default function Navbar() {
 
   const user = session?.user;
 
-  // On recruiter dashboard, hide global floating navbar for clean dashboard UI
-  if (pathname.startsWith("/dashboard/recruiter")) {
+  // On any dashboard (recruiter or seeker), hide global floating navbar for clean dedicated dashboard UI
+  if (pathname.startsWith("/dashboard")) {
     return null;
   }
 

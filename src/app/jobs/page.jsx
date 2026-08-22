@@ -3,8 +3,9 @@
 import React, { useState, useEffect, useMemo, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { motion, AnimatePresence } from "motion/react";
 import { useSession } from "@/lib/auth-client";
+import { JobCardSkeleton } from "@/components/ui/loading/ShimmerSkeleton";
+import PageLoader from "@/components/ui/loading/PageLoader";
 
 function BrowseJobsContent() {
   const router = useRouter();
@@ -23,8 +24,15 @@ function BrowseJobsContent() {
   const [selectedMinSalary, setSelectedMinSalary] = useState("All");
   const [sortBy, setSortBy] = useState("newest");
 
-  // Apply Modal State
+  // Apply Modal & Quota State
   const [selectedJobForApply, setSelectedJobForApply] = useState(null);
+  const [quota, setQuota] = useState({
+    appliedCount: 0,
+    maxLimit: 3,
+    remaining: 3,
+    isPro: false,
+    limitReached: false,
+  });
   const [applyForm, setApplyForm] = useState({
     name: "",
     email: "",
@@ -111,6 +119,28 @@ function BrowseJobsContent() {
     return () => clearTimeout(timer);
   }, [searchTerm, selectedCategory, selectedWorkType, selectedLocation, selectedMinSalary, sortBy]);
 
+  // Fetch Quota for logged in seeker
+  const fetchSeekerQuota = async () => {
+    if (!user) return;
+    try {
+      const res = await fetch("/api/applications");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.quota) {
+          setQuota(data.quota);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to fetch quota:", err);
+    }
+  };
+
+  useEffect(() => {
+    if (user) {
+      fetchSeekerQuota();
+    }
+  }, [user]);
+
   // Handle redirect auto-apply when coming back from login
   useEffect(() => {
     const applyJobId = searchParams?.get("applyJobId");
@@ -130,6 +160,7 @@ function BrowseJobsContent() {
       return;
     }
 
+    fetchSeekerQuota();
     setSelectedJobForApply(job);
     setApplyError("");
     setApplySuccess(false);
@@ -226,8 +257,15 @@ function BrowseJobsContent() {
 
       if (!res.ok) {
         setApplyError(data.error || "Failed to submit application.");
+        if (data.limitReached) {
+          setQuota((prev) => ({ ...prev, limitReached: true }));
+        }
         setApplySubmitting(false);
         return;
+      }
+
+      if (data.quota) {
+        setQuota(data.quota);
       }
 
       setApplySuccess(true);
@@ -468,25 +506,7 @@ function BrowseJobsContent() {
 
         {/* Jobs Grid */}
         {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6">
-            {[1, 2, 3, 4, 5, 6].map((i) => (
-              <div
-                key={i}
-                className="p-7 rounded-3xl bg-[#141217]/50 border border-white/5 animate-pulse min-h-[260px] flex flex-col justify-between"
-              >
-                <div className="space-y-4">
-                  <div className="h-6 w-3/4 bg-white/10 rounded-lg" />
-                  <div className="h-4 w-full bg-white/5 rounded-md" />
-                  <div className="h-4 w-2/3 bg-white/5 rounded-md" />
-                </div>
-                <div className="flex gap-2 pt-6">
-                  <div className="h-7 w-20 bg-white/5 rounded-full" />
-                  <div className="h-7 w-16 bg-white/5 rounded-full" />
-                  <div className="h-7 w-24 bg-white/5 rounded-full" />
-                </div>
-              </div>
-            ))}
-          </div>
+          <JobCardSkeleton count={6} />
         ) : jobs.length === 0 ? (
           <div className="text-center py-24 rounded-3xl bg-[#141217]/40 border border-white/5 space-y-4">
             <div className="w-12 h-12 mx-auto rounded-2xl bg-white/5 flex items-center justify-center text-slate-400 text-xl">
@@ -638,8 +658,19 @@ function BrowseJobsContent() {
               {/* Header */}
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <div className="text-xs text-purple-400 font-semibold uppercase tracking-wider mb-1">
-                    {selectedJobForApply.companyName}
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-xs text-purple-400 font-semibold uppercase tracking-wider">
+                      {selectedJobForApply.companyName}
+                    </span>
+                    {!quota.isPro && (
+                      <span className={`px-2 py-0.5 rounded-md text-[10px] font-semibold ${
+                        quota.limitReached
+                          ? "bg-rose-500/20 text-rose-400 border border-rose-500/30"
+                          : "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"
+                      }`}>
+                        {quota.limitReached ? "Quota Exhausted" : `${quota.remaining} Free Apps Left`}
+                      </span>
+                    )}
                   </div>
                   <h3 className="text-xl font-bold text-white">
                     Apply for {selectedJobForApply.title}
@@ -657,102 +688,140 @@ function BrowseJobsContent() {
                 </button>
               </div>
 
-              {/* Error Notice */}
-              {applyError && (
-                <div className="p-3.5 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
-                  <span>⚠️</span>
-                  <span>{applyError}</span>
-                </div>
-              )}
-
-              {applySuccess ? (
-                <div className="py-8 text-center space-y-3">
-                  <div className="w-12 h-12 mx-auto rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-2xl font-bold">
-                    ✓
+              {/* Limit Reached Warning Screen */}
+              {quota.limitReached && !applySuccess ? (
+                <div className="p-6 rounded-2xl bg-rose-950/20 border border-rose-500/30 text-center space-y-4">
+                  <div className="w-12 h-12 mx-auto rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center text-2xl font-bold">
+                    ⚠️
                   </div>
-                  <h4 className="text-lg font-bold text-white">Application Submitted!</h4>
-                  <p className="text-xs text-slate-300 max-w-sm mx-auto">
-                    The recruiter at {selectedJobForApply.companyName} has received your profile and CV.
-                  </p>
-                </div>
-              ) : (
-                <form onSubmit={handleApplySubmit} className="space-y-4">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-slate-300">Full Name *</label>
-                    <input
-                      type="text"
-                      required
-                      value={applyForm.name}
-                      onChange={(e) => setApplyForm({ ...applyForm, name: e.target.value })}
-                      placeholder="e.g. Alex Morgan"
-                      className="w-full px-4 py-2.5 rounded-xl bg-black/40 border border-white/10 focus:border-purple-500 focus:outline-none text-xs text-white"
-                    />
+                  <div className="space-y-1">
+                    <h4 className="text-base font-bold text-white">Free Plan Limit Reached</h4>
+                    <p className="text-xs text-slate-300 max-w-sm mx-auto leading-relaxed">
+                      You have submitted all {quota.maxLimit} free job applications. Upgrade to **Pro** for unlimited applications, priority candidate review, and direct recruiter contact.
+                    </p>
                   </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-slate-300">Email Address *</label>
-                    <input
-                      type="email"
-                      required
-                      value={applyForm.email}
-                      onChange={(e) => setApplyForm({ ...applyForm, email: e.target.value })}
-                      placeholder="alex@example.com"
-                      className="w-full px-4 py-2.5 rounded-xl bg-black/40 border border-white/10 focus:border-purple-500 focus:outline-none text-xs text-white"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-medium text-slate-300">Resume / CV Link *</label>
-                      <input
-                        type="url"
-                        required
-                        value={applyForm.resumeUrl}
-                        onChange={(e) => setApplyForm({ ...applyForm, resumeUrl: e.target.value })}
-                        placeholder="https://drive.google.com/..."
-                        className="w-full px-4 py-2.5 rounded-xl bg-black/40 border border-white/10 focus:border-purple-500 focus:outline-none text-xs text-white"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-medium text-slate-300">Portfolio / GitHub</label>
-                      <input
-                        type="url"
-                        value={applyForm.portfolioUrl}
-                        onChange={(e) => setApplyForm({ ...applyForm, portfolioUrl: e.target.value })}
-                        placeholder="https://github.com/..."
-                        className="w-full px-4 py-2.5 rounded-xl bg-black/40 border border-white/10 focus:border-purple-500 focus:outline-none text-xs text-white"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-slate-300">Short Note / Introduction</label>
-                    <textarea
-                      rows={3}
-                      value={applyForm.coverNote}
-                      onChange={(e) => setApplyForm({ ...applyForm, coverNote: e.target.value })}
-                      placeholder="Tell the hiring team why you are a great fit..."
-                      className="w-full px-4 py-2.5 rounded-xl bg-black/40 border border-white/10 focus:border-purple-500 focus:outline-none text-xs text-white resize-none"
-                    />
-                  </div>
-
-                  <div className="pt-2 flex items-center justify-end gap-3">
+                  <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+                    <Link
+                      href="/pricing"
+                      className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 text-white font-bold text-xs shadow-lg shadow-purple-500/25 transition-all text-center"
+                    >
+                      ⚡ Upgrade to Pro (Unlimited)
+                    </Link>
                     <button
                       type="button"
                       onClick={() => setSelectedJobForApply(null)}
-                      className="px-4 py-2.5 rounded-xl text-xs font-medium text-slate-400 hover:text-white bg-white/5 transition-colors cursor-pointer"
+                      className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-xs text-slate-400 hover:text-white transition-colors"
                     >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={applySubmitting}
-                      className="px-6 py-2.5 rounded-xl text-xs font-semibold text-black bg-white hover:bg-slate-200 transition-all shadow-lg cursor-pointer disabled:opacity-50"
-                    >
-                      {applySubmitting ? "Submitting..." : "Submit Application"}
+                      Close
                     </button>
                   </div>
-                </form>
+                </div>
+              ) : (
+                <>
+                  {/* Error Notice */}
+                  {applyError && (
+                    <div className="p-3.5 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
+                      <span>⚠️</span>
+                      <span>{applyError}</span>
+                    </div>
+                  )}
+
+                  {applySuccess ? (
+                    <div className="py-8 text-center space-y-3">
+                      <div className="w-12 h-12 mx-auto rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-2xl font-bold">
+                        ✓
+                      </div>
+                      <h4 className="text-lg font-bold text-white">Application Submitted!</h4>
+                      <p className="text-xs text-slate-300 max-w-sm mx-auto">
+                        The recruiter at {selectedJobForApply.companyName} has received your profile and CV.
+                      </p>
+                      {!quota.isPro && (
+                        <p className="text-[11px] text-purple-400 font-medium">
+                          You have {quota.remaining} free applications remaining.
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <form onSubmit={handleApplySubmit} className="space-y-4">
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-medium text-slate-300">Full Name *</label>
+                        <input
+                          type="text"
+                          required
+                          value={applyForm.name}
+                          onChange={(e) => setApplyForm({ ...applyForm, name: e.target.value })}
+                          placeholder="e.g. Alex Morgan"
+                          className="w-full px-4 py-2.5 rounded-xl bg-black/40 border border-white/10 focus:border-purple-500 focus:outline-none text-xs text-white"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-medium text-slate-300">Email Address *</label>
+                        <input
+                          type="email"
+                          required
+                          value={applyForm.email}
+                          onChange={(e) => setApplyForm({ ...applyForm, email: e.target.value })}
+                          placeholder="alex@example.com"
+                          className="w-full px-4 py-2.5 rounded-xl bg-black/40 border border-white/10 focus:border-purple-500 focus:outline-none text-xs text-white"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-medium text-slate-300">Resume / CV Link *</label>
+                          <input
+                            type="url"
+                            required
+                            value={applyForm.resumeUrl}
+                            onChange={(e) => setApplyForm({ ...applyForm, resumeUrl: e.target.value })}
+                            placeholder="https://drive.google.com/..."
+                            className="w-full px-4 py-2.5 rounded-xl bg-black/40 border border-white/10 focus:border-purple-500 focus:outline-none text-xs text-white"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-medium text-slate-300">Portfolio / GitHub</label>
+                          <input
+                            type="url"
+                            value={applyForm.portfolioUrl}
+                            onChange={(e) => setApplyForm({ ...applyForm, portfolioUrl: e.target.value })}
+                            placeholder="https://github.com/..."
+                            className="w-full px-4 py-2.5 rounded-xl bg-black/40 border border-white/10 focus:border-purple-500 focus:outline-none text-xs text-white"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-medium text-slate-300">Short Note / Introduction</label>
+                        <textarea
+                          rows={3}
+                          value={applyForm.coverNote}
+                          onChange={(e) => setApplyForm({ ...applyForm, coverNote: e.target.value })}
+                          placeholder="Tell the hiring team why you are a great fit..."
+                          className="w-full px-4 py-2.5 rounded-xl bg-black/40 border border-white/10 focus:border-purple-500 focus:outline-none text-xs text-white resize-none"
+                        />
+                      </div>
+
+                      <div className="pt-2 flex items-center justify-end gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedJobForApply(null)}
+                          className="px-4 py-2.5 rounded-xl text-xs font-medium text-slate-400 hover:text-white bg-white/5 transition-colors cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={applySubmitting}
+                          className="px-6 py-2.5 rounded-xl text-xs font-semibold text-black bg-white hover:bg-slate-200 transition-all shadow-lg cursor-pointer disabled:opacity-50"
+                        >
+                          {applySubmitting ? "Submitting..." : "Submit Application"}
+                        </button>
+                      </div>
+                    </form>
+                  )}
+                </>
               )}
             </motion.div>
           </div>
@@ -764,7 +833,15 @@ function BrowseJobsContent() {
 
 export default function BrowseJobsPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[#070709] text-white pt-36 text-center">Loading jobs...</div>}>
+    <Suspense
+      fallback={
+        <PageLoader
+          message="Loading Opportunities..."
+          subMessage="Fetching curated open positions across global tech companies"
+          fullScreen={true}
+        />
+      }
+    >
       <BrowseJobsContent />
     </Suspense>
   );

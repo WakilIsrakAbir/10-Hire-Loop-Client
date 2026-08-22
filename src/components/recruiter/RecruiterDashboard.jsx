@@ -219,28 +219,41 @@ export default function RecruiterDashboard({ user }) {
                 </Link>
               </div>
 
-              <div className="flex items-center gap-4">
-                <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-[#D4AF37] to-[#F5D77F] p-0.5 shrink-0 shadow-lg shadow-yellow-500/10">
-                  <div className="w-full h-full rounded-[14px] bg-[#141417] flex items-center justify-center overflow-hidden font-bold text-2xl text-yellow-400">
-                    {company?.logo ? (
-                      <img src={company.logo} alt={company.name} className="w-full h-full object-cover" />
-                    ) : (
-                      company?.name?.charAt(0) || "C"
-                    )}
+              {loadingCompany ? (
+                <div className="space-y-4 animate-shimmer py-2">
+                  <div className="flex items-center gap-4">
+                    <div className="w-16 h-16 rounded-2xl bg-white/10 shrink-0" />
+                    <div className="space-y-2 flex-1">
+                      <div className="h-4 w-3/4 bg-white/10 rounded" />
+                      <div className="h-3 w-1/2 bg-white/5 rounded" />
+                    </div>
+                  </div>
+                  <div className="h-6 w-24 bg-white/5 rounded-full" />
+                </div>
+              ) : (
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-[#D4AF37] to-[#F5D77F] p-0.5 shrink-0 shadow-lg shadow-yellow-500/10">
+                    <div className="w-full h-full rounded-[14px] bg-[#141417] flex items-center justify-center overflow-hidden font-bold text-2xl text-yellow-400">
+                      {company?.logo ? (
+                        <img src={company.logo} alt={company.name} className="w-full h-full object-cover" />
+                      ) : (
+                        company?.name?.charAt(0) || "C"
+                      )}
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <h4 className="text-base font-bold text-white">
+                      {company?.name || "TechFlow Inc."}
+                    </h4>
+                    <p className="text-xs text-zinc-400">
+                      {company?.industry || "Technology & Software"} • {company?.location || "San Francisco, CA"}
+                    </p>
+                    <span className="inline-block text-[10px] font-semibold text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 rounded-full">
+                      {company?.status === "approved" ? "Verified Employer" : "Active Recruiter"}
+                    </span>
                   </div>
                 </div>
-                <div className="space-y-1">
-                  <h4 className="text-base font-bold text-white">
-                    {company?.name || "TechFlow Inc."}
-                  </h4>
-                  <p className="text-xs text-zinc-400">
-                    {company?.industry || "Technology & Software"} • {company?.location || "San Francisco, CA"}
-                  </p>
-                  <span className="inline-block text-[10px] font-semibold text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 rounded-full">
-                    {company?.status === "approved" ? "Verified Employer" : "Active Recruiter"}
-                  </span>
-                </div>
-              </div>
+              )}
 
               <div className="pt-2 border-t border-white/5 flex items-center justify-between text-xs text-zinc-400">
                 <span>Plan: Growth (10 Jobs)</span>

@@ -11,7 +11,7 @@ export default function Footer() {
   const { data: session } = useSession();
   const user = session?.user;
 
-  if (pathname.startsWith("/dashboard/recruiter")) {
+  if (pathname.startsWith("/dashboard")) {
     return null;
   }
 

@@ -21,7 +21,14 @@ export default function JobDetailsPage() {
   const [saved, setSaved] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  // Application form state
+  // Application quota & form state
+  const [quota, setQuota] = useState({
+    appliedCount: 0,
+    maxLimit: 3,
+    remaining: 3,
+    isPro: false,
+    limitReached: false,
+  });
   const [form, setForm] = useState({
     fullName: "",
     email: "",
@@ -68,7 +75,7 @@ export default function JobDetailsPage() {
     fetchJobDetails();
   }, [jobId]);
 
-  // Pre-fill user details if logged in
+  // Pre-fill user details & fetch quota if logged in
   useEffect(() => {
     if (user) {
       setForm((prev) => ({
@@ -76,6 +83,16 @@ export default function JobDetailsPage() {
         fullName: prev.fullName || user.name || "",
         email: prev.email || user.email || "",
       }));
+
+      // Fetch Quota
+      fetch("/api/applications")
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (data?.quota) {
+            setQuota(data.quota);
+          }
+        })
+        .catch((err) => console.error("Error fetching quota:", err));
     }
   }, [user]);
 
@@ -129,8 +146,15 @@ export default function JobDetailsPage() {
 
       if (!res.ok) {
         setApplyError(data.error || "Failed to submit application.");
+        if (data.limitReached) {
+          setQuota((prev) => ({ ...prev, limitReached: true }));
+        }
         setSubmitting(false);
         return;
+      }
+
+      if (data.quota) {
+        setQuota(data.quota);
       }
 
       setAppliedSuccess(true);
@@ -145,23 +169,48 @@ export default function JobDetailsPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-[#070709] text-white pt-28 pb-20 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-6xl mx-auto space-y-8 animate-pulse">
+        <div className="max-w-6xl mx-auto space-y-8 animate-shimmer">
+          {/* Back button skeleton */}
           <div className="h-6 w-36 bg-white/10 rounded-lg" />
-          <div className="p-8 rounded-3xl bg-[#141217]/60 border border-white/5 space-y-4">
-            <div className="h-8 w-1/3 bg-white/10 rounded-xl" />
-            <div className="h-4 w-1/4 bg-white/5 rounded-md" />
-            <div className="flex gap-3 pt-4">
-              <div className="h-8 w-24 bg-white/5 rounded-full" />
-              <div className="h-8 w-24 bg-white/5 rounded-full" />
+
+          {/* Main Hero Card Skeleton */}
+          <div className="p-8 rounded-3xl bg-[#141217]/70 border border-white/5 space-y-6">
+            <div className="flex items-start justify-between gap-6">
+              <div className="space-y-3 flex-1">
+                <div className="h-8 w-2/5 bg-white/10 rounded-xl" />
+                <div className="h-4 w-1/4 bg-white/5 rounded-md" />
+              </div>
+              <div className="w-16 h-16 rounded-2xl bg-white/10 shrink-0" />
+            </div>
+            <div className="flex flex-wrap gap-3 pt-2">
               <div className="h-8 w-28 bg-white/5 rounded-full" />
+              <div className="h-8 w-28 bg-white/5 rounded-full" />
+              <div className="h-8 w-32 bg-white/5 rounded-full" />
             </div>
           </div>
+
+          {/* Two-column Detail Layout Skeleton */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-2 space-y-4">
-              <div className="h-40 rounded-3xl bg-[#141217]/40 border border-white/5" />
-              <div className="h-60 rounded-3xl bg-[#141217]/40 border border-white/5" />
+            <div className="lg:col-span-2 space-y-6">
+              <div className="p-8 rounded-3xl bg-[#141217]/50 border border-white/5 space-y-4">
+                <div className="h-6 w-40 bg-white/10 rounded-lg" />
+                <div className="h-4 w-full bg-white/5 rounded" />
+                <div className="h-4 w-5/6 bg-white/5 rounded" />
+                <div className="h-4 w-4/6 bg-white/5 rounded" />
+              </div>
+              <div className="p-8 rounded-3xl bg-[#141217]/50 border border-white/5 space-y-4">
+                <div className="h-6 w-48 bg-white/10 rounded-lg" />
+                <div className="h-4 w-full bg-white/5 rounded" />
+                <div className="h-4 w-full bg-white/5 rounded" />
+                <div className="h-4 w-3/4 bg-white/5 rounded" />
+              </div>
             </div>
-            <div className="h-80 rounded-3xl bg-[#141217]/40 border border-white/5" />
+            <div className="p-8 rounded-3xl bg-[#141217]/50 border border-white/5 h-80 space-y-4">
+              <div className="h-6 w-32 bg-white/10 rounded-lg" />
+              <div className="h-4 w-full bg-white/5 rounded" />
+              <div className="h-4 w-2/3 bg-white/5 rounded" />
+              <div className="h-12 w-full bg-white/10 rounded-2xl mt-8" />
+            </div>
           </div>
         </div>
       </div>
@@ -451,16 +500,28 @@ export default function JobDetailsPage() {
               id="apply-section"
               className="p-6 sm:p-8 rounded-3xl bg-gradient-to-b from-[#181520] to-[#121017] border border-purple-500/30 shadow-2xl space-y-6"
             >
-              <div>
-                <span className="text-xs font-semibold text-purple-400 uppercase tracking-wider">
-                  Quick Application
-                </span>
-                <h3 className="text-2xl font-bold text-white tracking-tight mt-1">
-                  Apply for {job.title}
-                </h3>
-                <p className="text-xs sm:text-sm text-slate-400 mt-1">
-                  Submit your details directly to the hiring team at {job.companyName || "the company"}.
-                </p>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <span className="text-xs font-semibold text-purple-400 uppercase tracking-wider">
+                    Quick Application
+                  </span>
+                  <h3 className="text-2xl font-bold text-white tracking-tight mt-1">
+                    Apply for {job.title}
+                  </h3>
+                  <p className="text-xs sm:text-sm text-slate-400 mt-1">
+                    Submit your details directly to the hiring team at {job.companyName || "the company"}.
+                  </p>
+                </div>
+
+                {user && !quota.isPro && (
+                  <div className={`px-3 py-1 rounded-full text-xs font-semibold self-start sm:self-auto border ${
+                    quota.limitReached
+                      ? "bg-rose-500/15 border-rose-500/30 text-rose-300"
+                      : "bg-purple-500/15 border-purple-500/30 text-purple-300"
+                  }`}>
+                    {quota.limitReached ? "Free Quota Full" : `${quota.remaining} Free Apps Left`}
+                  </div>
+                )}
               </div>
 
               {/* Login required banner if not signed in */}
@@ -479,104 +540,128 @@ export default function JobDetailsPage() {
                 </div>
               )}
 
-              {/* Error notice */}
-              {applyError && (
-                <div className="p-3.5 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
-                  <span>⚠️</span>
-                  <span>{applyError}</span>
-                </div>
-              )}
-
-              {appliedSuccess ? (
-                <div className="p-8 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-center space-y-3">
-                  <div className="w-12 h-12 mx-auto rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-2xl font-bold">
-                    ✓
+              {/* Free Plan Limit Reached Banner */}
+              {user && quota.limitReached && !appliedSuccess ? (
+                <div className="p-6 rounded-2xl bg-rose-950/20 border border-rose-500/30 text-center space-y-4">
+                  <div className="w-12 h-12 mx-auto rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center text-2xl font-bold">
+                    ⚠️
                   </div>
-                  <h4 className="text-lg font-bold text-white">Application Received!</h4>
-                  <p className="text-xs text-slate-300 max-w-sm mx-auto">
-                    Thank you for applying. The recruiter at {job.companyName} has received your profile and CV.
-                  </p>
-                  <button
-                    onClick={() => setAppliedSuccess(false)}
-                    className="mt-4 px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-medium text-white transition-colors cursor-pointer"
-                  >
-                    Submit another response
-                  </button>
+                  <div className="space-y-1">
+                    <h4 className="text-base font-bold text-white">Free Plan Limit Reached</h4>
+                    <p className="text-xs text-slate-300 max-w-md mx-auto leading-relaxed">
+                      You have reached the maximum limit of {quota.maxLimit} applications for free accounts. Upgrade to **Pro** to unlock unlimited applications.
+                    </p>
+                  </div>
+                  <div className="pt-2">
+                    <Link
+                      href="/pricing"
+                      className="inline-block px-6 py-2.5 rounded-xl bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 text-white font-bold text-xs shadow-lg shadow-purple-500/25 transition-all"
+                    >
+                      ⚡ Upgrade to Pro for Unlimited Applications
+                    </Link>
+                  </div>
                 </div>
               ) : (
-                <form onSubmit={handleApply} className="space-y-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-medium text-slate-300">Full Name *</label>
-                      <input
-                        type="text"
-                        required
-                        value={form.fullName}
-                        onChange={(e) => setForm({ ...form, fullName: e.target.value })}
-                        placeholder="e.g. John Doe"
-                        className="w-full px-4 py-3 rounded-xl bg-black/40 border border-white/10 focus:border-purple-500 focus:outline-none text-xs text-white"
-                      />
+                <>
+                  {/* Error notice */}
+                  {applyError && (
+                    <div className="p-3.5 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
+                      <span>⚠️</span>
+                      <span>{applyError}</span>
                     </div>
+                  )}
 
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-medium text-slate-300">Email Address *</label>
-                      <input
-                        type="email"
-                        required
-                        value={form.email}
-                        onChange={(e) => setForm({ ...form, email: e.target.value })}
-                        placeholder="john@example.com"
-                        className="w-full px-4 py-3 rounded-xl bg-black/40 border border-white/10 focus:border-purple-500 focus:outline-none text-xs text-white"
-                      />
+                  {appliedSuccess ? (
+                    <div className="p-8 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-center space-y-3">
+                      <div className="w-12 h-12 mx-auto rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-2xl font-bold">
+                        ✓
+                      </div>
+                      <h4 className="text-lg font-bold text-white">Application Received!</h4>
+                      <p className="text-xs text-slate-300 max-w-sm mx-auto">
+                        Thank you for applying. The recruiter at {job.companyName} has received your profile and CV.
+                      </p>
+                      {!quota.isPro && (
+                        <p className="text-[11px] text-purple-400 font-medium">
+                          You have {quota.remaining} free applications remaining.
+                        </p>
+                      )}
                     </div>
-                  </div>
+                  ) : (
+                    <form onSubmit={handleApply} className="space-y-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-medium text-slate-300">Full Name *</label>
+                          <input
+                            type="text"
+                            required
+                            value={form.fullName}
+                            onChange={(e) => setForm({ ...form, fullName: e.target.value })}
+                            placeholder="e.g. John Doe"
+                            className="w-full px-4 py-3 rounded-xl bg-black/40 border border-white/10 focus:border-purple-500 focus:outline-none text-xs text-white"
+                          />
+                        </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-medium text-slate-300">Resume / CV Link *</label>
-                      <input
-                        type="url"
-                        required
-                        value={form.resumeUrl}
-                        onChange={(e) => setForm({ ...form, resumeUrl: e.target.value })}
-                        placeholder="https://drive.google.com/..."
-                        className="w-full px-4 py-3 rounded-xl bg-black/40 border border-white/10 focus:border-purple-500 focus:outline-none text-xs text-white"
-                      />
-                    </div>
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-medium text-slate-300">Email Address *</label>
+                          <input
+                            type="email"
+                            required
+                            value={form.email}
+                            onChange={(e) => setForm({ ...form, email: e.target.value })}
+                            placeholder="john@example.com"
+                            className="w-full px-4 py-3 rounded-xl bg-black/40 border border-white/10 focus:border-purple-500 focus:outline-none text-xs text-white"
+                          />
+                        </div>
+                      </div>
 
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-medium text-slate-300">Portfolio / GitHub</label>
-                      <input
-                        type="url"
-                        value={form.portfolio}
-                        onChange={(e) => setForm({ ...form, portfolio: e.target.value })}
-                        placeholder="https://github.com/username"
-                        className="w-full px-4 py-3 rounded-xl bg-black/40 border border-white/10 focus:border-purple-500 focus:outline-none text-xs text-white"
-                      />
-                    </div>
-                  </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-medium text-slate-300">Resume / CV Link *</label>
+                          <input
+                            type="url"
+                            required
+                            value={form.resumeUrl}
+                            onChange={(e) => setForm({ ...form, resumeUrl: e.target.value })}
+                            placeholder="https://drive.google.com/..."
+                            className="w-full px-4 py-3 rounded-xl bg-black/40 border border-white/10 focus:border-purple-500 focus:outline-none text-xs text-white"
+                          />
+                        </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-slate-300">Why are you interested in this role?</label>
-                    <textarea
-                      rows={3}
-                      value={form.coverNote}
-                      onChange={(e) => setForm({ ...form, coverNote: e.target.value })}
-                      placeholder="Briefly highlight your relevant experience and enthusiasm..."
-                      className="w-full px-4 py-3 rounded-xl bg-black/40 border border-white/10 focus:border-purple-500 focus:outline-none text-xs text-white resize-none"
-                    />
-                  </div>
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-medium text-slate-300">Portfolio / GitHub</label>
+                          <input
+                            type="url"
+                            value={form.portfolio}
+                            onChange={(e) => setForm({ ...form, portfolio: e.target.value })}
+                            placeholder="https://github.com/username"
+                            className="w-full px-4 py-3 rounded-xl bg-black/40 border border-white/10 focus:border-purple-500 focus:outline-none text-xs text-white"
+                          />
+                        </div>
+                      </div>
 
-                  <div className="pt-2">
-                    <button
-                      type="submit"
-                      disabled={submitting}
-                      className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 text-white font-bold text-xs sm:text-sm shadow-xl shadow-purple-500/25 transition-all cursor-pointer disabled:opacity-50"
-                    >
-                      {submitting ? "Sending Application..." : "Submit My Application →"}
-                    </button>
-                  </div>
-                </form>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-medium text-slate-300">Why are you interested in this role?</label>
+                        <textarea
+                          rows={3}
+                          value={form.coverNote}
+                          onChange={(e) => setForm({ ...form, coverNote: e.target.value })}
+                          placeholder="Briefly highlight your relevant experience and enthusiasm..."
+                          className="w-full px-4 py-3 rounded-xl bg-black/40 border border-white/10 focus:border-purple-500 focus:outline-none text-xs text-white resize-none"
+                        />
+                      </div>
+
+                      <div className="pt-2">
+                        <button
+                          type="submit"
+                          disabled={submitting}
+                          className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 text-white font-bold text-xs sm:text-sm shadow-xl shadow-purple-500/25 transition-all cursor-pointer disabled:opacity-50"
+                        >
+                          {submitting ? "Sending Application..." : "Submit My Application →"}
+                        </button>
+                      </div>
+                    </form>
+                  )}
+                </>
               )}
             </div>
           </div>
